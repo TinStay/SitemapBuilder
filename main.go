@@ -13,18 +13,16 @@ import (
 
 func main() {
 	urlFlag := flag.String("url", "https://gophercises.com/", "URL to build a sitemap for")
-	maxDepth := flag.Int("depth", 3, "Maximum number of links deep to traverse")
+	maxDepth := flag.Int("depth", 10, "Maximum number of links deep to traverse")
 
 	flag.Parse()
-
-	// Build proper urls with our links
-	pages := getPageLinks(*urlFlag)
+	
+	// Find all pages (BFS)
+	pages := bfs(*urlFlag, *maxDepth)
 
 	for _, url := range pages {
 		fmt.Println(url)
 	}
-	// Find all pages (BFS)
-
 	// Print out XML
 
 }
@@ -90,4 +88,36 @@ func withPrefix(pfx string) func(string) bool {
 	return func(link string) bool {
 		return strings.HasPrefix(link, pfx)
 	}
+}
+
+func bfs(urlStr string, maxDepth int) []string {
+	seen := make(map[string]struct{})
+
+	var q map[string]struct{}
+
+	nq := map[string]struct{}{
+		urlStr: struct{}{},
+	}
+
+	for i := 0; i <= maxDepth; i++{
+		q, nq = nq, make(map[string]struct{})
+		for url, _ := range q{
+			if _, ok := seen[url]; ok {
+				continue
+			}
+			// Add url to seen map
+			seen[url] = struct{}{}
+
+			for _, link := range getPageLinks(urlStr) {
+				nq[link] = struct{}{}
+			}
+		}
+	}
+	
+	ret := make([]string, 0, len(seen))
+
+	for url, _ := range seen {
+		ret = append(ret, url)
+	}
+	return ret
 }
