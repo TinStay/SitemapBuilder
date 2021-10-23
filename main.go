@@ -1,15 +1,26 @@
 package main
 
 import (
+	"encoding/xml"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	link "github.com/Basics/src/github.com/TinStay/LinkParser"
 )
+const xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+type loc struct {
+	Value string `xml:"loc"`
+}
+
+type urlset struct {
+	Urls []loc `xml:"url"`
+	Xmlns string `xml:"xmlns,attr"`
+}
 
 func main() {
 	urlFlag := flag.String("url", "https://gophercises.com/", "URL to build a sitemap for")
@@ -20,10 +31,25 @@ func main() {
 	// Find all pages (BFS)
 	pages := bfs(*urlFlag, *maxDepth)
 
-	for _, url := range pages {
-		fmt.Println(url)
-	}
 	// Print out XML
+	toXml:= urlset{
+		Xmlns: xmlns,
+	}
+
+	for _, page := range pages {
+		toXml.Urls = append(toXml.Urls, loc{page})
+	}
+
+	// Print xml version
+	fmt.Print(xml.Header)
+
+	enc := xml.NewEncoder(os.Stdout)
+
+	// Format xml
+	enc.Indent("", "  ")
+	if err := enc.Encode(toXml); err != nil{
+		panic(err)
+	}
 
 }
 
@@ -101,15 +127,23 @@ func bfs(urlStr string, maxDepth int) []string {
 
 	for i := 0; i <= maxDepth; i++{
 		q, nq = nq, make(map[string]struct{})
+
+		// Exit if no links
+		if len(q) == 0{
+			break
+		}
+
 		for url, _ := range q{
 			if _, ok := seen[url]; ok {
 				continue
 			}
 			// Add url to seen map
 			seen[url] = struct{}{}
-
+			
 			for _, link := range getPageLinks(urlStr) {
-				nq[link] = struct{}{}
+				if _, ok := seen[link]; !ok{
+					nq[link] = struct{}{}
+				}
 			}
 		}
 	}
